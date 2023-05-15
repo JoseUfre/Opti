@@ -1,0 +1,2 @@
+# Opti
+Proyecto en gurobi
