@@ -7,3 +7,5 @@ def no_sale(f, c, r, filas, columnas):
             return True
     else:
         return False
+
+

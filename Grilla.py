@@ -1,9 +1,9 @@
 from auxiliares import no_sale
 
 
-filas = 9
+filas = 8
 columnas = 8
-radios = (1, 3)
+radios = (1, 3, 5, 7)
 
 grid = [[c for c in range(columnas)] for f in range(filas)]
 
@@ -18,3 +18,14 @@ for r in radios:
                no_sale(f, c, r, filas, columnas)]
 
 
+# Lugares donde no puedo poner un regador excepto 
+# para distancias = r (para arriba, abajo, derecha, izquierda)
+
+# Todos los lugares que son regados si se pone un regador en (x, y)
+
+W_hlr = {}
+
+
+
+
+# Todos los lugares donde si se coloca un aspersor en (x,y) se hacen vecinos
