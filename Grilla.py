@@ -1,4 +1,4 @@
-from auxiliares import no_sale
+from auxiliares import no_sale, riega
 
 
 filas = 8
@@ -25,6 +25,17 @@ for r in radios:
 
 W_hlr = {}
 
+for r in radios:
+    for (x, y) in C_hl[r]:
+        W_hlr[(x, y)] = [(f, c) for f in range(filas) for c in range(columnas) if
+                         riega(x, y, f, c, r)]
+        
+#deberia incluir el radio en el diccionario?
+
+print(C_hl)
+print()
+for (x, y) in W_hlr:
+    print((x, y), W_hlr[(x, y)])
 
 
 

@@ -8,4 +8,8 @@ def no_sale(f, c, r, filas, columnas):
     else:
         return False
 
-
+def riega(x, y, f, c, r):
+    if x + r >= f and y + r >= c and x - r <= f and y - r <= c and (x, y) != (f, c):
+        return True
+    else:
+        return False
