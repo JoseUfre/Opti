@@ -40,3 +40,11 @@ for (x, y) in W_hlr:
 
 
 # Todos los lugares donde si se coloca un aspersor en (x,y) se hacen vecinos
+# Son vecinos si comparten pasto a regar
+V_xyr = {}
+
+for r1 in radios:
+    for (x, y) in C_hl[r1]:
+        V_xyr[(x, y)] = [(f, c) for f in range(filas) for c in range(columnas) if
+                         (x, y) != (f, c) and (f, c) in W_hlr[(x, y)]]
+        
