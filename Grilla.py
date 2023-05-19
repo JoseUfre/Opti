@@ -1,5 +1,5 @@
 from auxiliares import no_sale, riega
-
+from random import randint, seed
 
 filas = 8
 columnas = 8
@@ -30,7 +30,7 @@ for r in radios:
         W_hlr[(x, y)] = [(f, c) for f in range(filas) for c in range(columnas) if
                          riega(x, y, f, c, r)]
         
-#deberia incluir el radio en el diccionario?
+#deberia incluir el radio en el diccionario? si
 
 print(C_hl)
 print()
