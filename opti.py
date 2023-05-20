@@ -57,9 +57,13 @@ class SolverGurobi():
             z.num_fil = self.fil[n_sector]
             z.num_col = self.col[n_sector]
             self.sectores[z.id] = z
+        # For sector in sectores:
+            #haz grilla
+            # self.posibles_places[asdf] = return de grillaasfdasdf
 
     def set_vars(self):
         print("Setting vars")
+        Z = range(self.n_sectores)
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             F = range(sector.num_fil)
@@ -68,8 +72,8 @@ class SolverGurobi():
             self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R,
                                                  vtype=GRB.BINARY,
                                                  name=nombre)
-            self.vars[f"v{sector.id}"] = self.model.addVars(F,C, vtype=GRB.INTEGER, name=f"v{sector.id}_f,c")
-
+            
+        self.vars["v"] = self.model.addVars(F,C,Z vtype=GRB.INTEGER, name=f"v_f,c,z")
         self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUE, name = "e1")
         self.model.update()
 
@@ -78,7 +82,6 @@ class SolverGurobi():
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
-            varvec = self.vars[f"v{sector.id}"]
             # Restriccion solo haber a lo mas un regador en dicho cuadrado
             for radio in self.R:
                 self.n_r += 1
@@ -105,13 +108,19 @@ class SolverGurobi():
                                                for f2 in range(sector.num_fil)
                                                for c2 in range(sector.num_col)
                                                if tuple(f2,c2) in not_places), name=f"R{self.n_r}")
-            # Restriccion: Saber cuantos vecinos hay
+    def set_vecinos_cts(self):
+        # Restriccion: Saber cuantos vecinos hay
+        varvec = self.vars["v"]
+        for z in range(self.n_sectores):
+            sector = self.sectores[z]
+            var = self.vars[f"x{sector.id}"]
             for radio in self.R:
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
                         key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
+<<<<<<< HEAD
 <<<<<<< HEAD
                         self.model.addConstrs(10000 * (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
                                                == 
@@ -120,18 +129,21 @@ class SolverGurobi():
                                                if tuple(f3, c3) in vecinos, name=f"R{self.n_r}")
 =======
                         self.model.addConstrs((varvec[fil,col] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
+=======
+                        self.model.addConstrs((varvec[fil,col,z] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
+>>>>>>> 66b86358e6b793c625ee37070d98c5879f90f5ba
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if tuple(f3, c3) in vecinos),
                                                name=f"R{self.n_r}")
                         self.n_r += 1
-                        self.model.addConstrs((varvec[fil,col] >= -10000*(1 - var[fil, col, radio]) + quicksum(var[f3,c3,a] for a in self.R)
+                        self.model.addConstrs((varvec[fil,col,z] >= -10000*(1 - var[fil, col, radio]) + quicksum(var[f3,c3,a] for a in self.R)
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if tuple(f3, c3) in vecinos),
                                                name=f"R{self.n_r}")
                         self.n_r += 1
-                        self.model.addConstr((varvec[fil,col] <= 10000*(var[fil, col, radio])),
+                        self.model.addConstr((varvec[fil,col,z] <= 10000*(var[fil, col, radio])),
                                                name=f"R{self.n_r}")
 >>>>>>> a37d8f021981f6d7ba1c68aa7d0bc92ec898dfd6
 
@@ -162,60 +174,20 @@ class SolverGurobi():
 
     def set_objetivo(self):
 <<<<<<< HEAD
+<<<<<<< HEAD
         funcion = quicksum()
 =======
         varvec = self.vars[f"v{sector.id}"]
 >>>>>>> a37d8f021981f6d7ba1c68aa7d0bc92ec898dfd6
+=======
+        varvec = self.vars["v"]
+        funcion = quicksum(varvec[f,c,z] for z in range(self.n_sectores)
+                           for c in range(self.sectores[z].num_col)
+                           for f in range(self.sectores[z].num_fil))
+        self.model.setObjective(funcion, GRB.MAXIMIZE) 
+    
+    def optimizar(self):
+        self.model.optimize()
+>>>>>>> 66b86358e6b793c625ee37070d98c5879f90f5ba
 
 
-"""
-
-NUM_SECTORES = 3
-sectores = []
-for sector in range(NUM_SECTORES):
-    z = Sector()
-    z.num_fil
-
-model = Model()
-
-F = range()
-
-sectores = set()
-
-R = set(3,5,7)
-
-
-for sector in sectores:
-    F = range(sector.num_fil)
-    C = range(sector.num_col)
-    x = model.addVars(F, C, R, vtype=GRB.BINARY, name=x)
-
-
-model.update()
-
-# Coloque aca sus restricciones
-model.addConstrs((quicksum(x[i, j] for j in J) == 1 for i in I), name="R1")
-model.addConstr((quicksum(y[j] for j in J) == n), name="R2")
-model.addConstrs((x[i, j] <= y[j] for i in I for j in J), name="R3")
-model.addConstrs((x[i, j] >= y[j] - quicksum(y[k] for k in J if t[i, k]
-                  < t[i, j]) for i in I for j in J), name="R4")
-model.addConstrs((v[i] <= quicksum(y[j] for j in J
-                                   if t[i, j] <= alpha) for i in I), name="R5")
-model.addConstrs((w[i] <= quicksum(y[j] for j in J if t[i, j] <= beta)
-                  for i in I), name="R6")
-model.addConstr((quicksum(v[i] for i in I) ==
-                  (0.85 + z1)*quicksum(1 for _ in I)), name="R7")
-model.addConstr((quicksum(c[i]*w[i] for i in I) ==
-                  (0.9 + z2)*quicksum(c[i] for i in I)), name="R8")
-model.addConstr((z1 >= 0), name="R9")
-model.addConstr((z2 >= 0), name="R10")
-
-# ------------------------ Funcion Objetivo ---------------------------
-funcion_objetivo = (
-                    b1 * z1 + b2 * z2 -
-                    p * quicksum((t[i, j] - alpha)*x[i, j]
-                    for i in I for j in J if t[i, j] > alpha)
-                    )
-
-model.setObjective(funcion_objetivo, GRB.MAXIMIZE) 
-model.optimize()"""
