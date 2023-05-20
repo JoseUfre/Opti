@@ -136,7 +136,6 @@ class SolverGurobi():
                             continue
                         self.n_r += 1
                         self.model.addConstrs((varvec[fil,col,z] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
-
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if  (f3, c3) in vecinos),
@@ -211,7 +210,7 @@ class SolverGurobi():
         funcion = quicksum(varvec[f,c,0] 
                            for c in range(self.sectores[0].num_col)
                            for f in range(self.sectores[0].num_fil))
-        #self.model.setObjective(funcion, GRB.MAXIMIZE) 
+        self.model.setObjective(funcion, GRB.MAXIMIZE) 
         print("Termine setear objetivo")
     
     def optimizar(self):
