@@ -238,6 +238,3 @@ if __name__ == "__main__":
     c_a1 = 20000
     gurobi = SolverGurobi(inversion=inversion1, min_c=min_c1, c_a=c_a1)
     gurobi.start()
-
-
-
