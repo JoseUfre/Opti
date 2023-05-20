@@ -77,6 +77,7 @@ class SolverGurobi():
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
+            varvec = self.vars[f"v{sector.id}"]
             # Restriccion solo haber a lo mas un regador en dicho cuadrado
             for radio in self.R:
                 self.n_r += 1
@@ -103,23 +104,33 @@ class SolverGurobi():
                                                for f2 in range(sector.num_fil)
                                                for c2 in range(sector.num_col)
                                                if tuple(f2,c2) in not_places), name=f"R{self.n_r}")
-            # Restriccion: Saber si hay vecino. 
+            # Restriccion: Saber cuantos vecinos hay
             for radio in self.R:
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
                         key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
-                        self.model.addConstrs( 10000* (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
-                                               == 
+                        self.model.addConstrs((varvec[fil,col] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
-                                               if tuple(f3, c3) in vecinos) , name=f"R{self.n_r}")
+                                               if tuple(f3, c3) in vecinos),
+                                               name=f"R{self.n_r}")
+                        self.n_r += 1
+                        self.model.addConstrs((varvec[fil,col] >= -10000*(1 - var[fil, col, radio]) + quicksum(var[f3,c3,a] for a in self.R)
+                                               for f3 in range(sector.num_fil)
+                                               for c3 in range(sector.num_col)
+                                               if tuple(f3, c3) in vecinos),
+                                               name=f"R{self.n_r}")
+                        self.n_r += 1
+                        self.model.addConstr((varvec[fil,col] <= 10000*(var[fil, col, radio])),
+                                               name=f"R{self.n_r}")
 
     def set_constrains_obj(self):
-        self.n_r += 2
-        self.model.addConstr(self.vars["e"] <= 1-self.min_cover)
-        self.model.addConstr(self.vars["e"] >= -0.15)
+        self.n_r += 1
+        self.model.addConstr(self.vars["e"] <= 1-self.min_cover, name =f"R{self.n_r}")
+        self.n_r += 1
+        self.model.addConstr(self.vars["e"] >= -0.15, name =f"R{self.n_r}")
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
@@ -139,9 +150,9 @@ class SolverGurobi():
             self.model.addConstr(costo * quicksum(var[f,c,r] for r in self.R
                                            for c in range(sector.num_col)
                                            for f in range(sector.num_fil)) <= inversion)
-    
+
     def set_objetivo(self):
-        funcion =  quicksum()
+        varvec = self.vars[f"v{sector.id}"]
 
 
 """
