@@ -5,8 +5,6 @@ filas = 5
 columnas = 5
 radios = (1, 5, 7)
 
-grid = [[c for c in range(columnas)] for f in range(filas)]
-
 # Conjunto que tiene las listas de los puntos (h,l)
 # de la grilla (grid) que no se salen de la misma
 # al regar con un aspersor de radio r
@@ -35,6 +33,7 @@ for r in radios:
 
 # ----------------------------------------------------------------------------------------------
 # Todos los lugares que son regados si se pone un regador en (x, y)
+# Lugares donde no puedo poner un regador de radio r si pongo uno en x,y
 
 W_hlr = {}
 

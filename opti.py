@@ -3,6 +3,7 @@ from random import randint, seed, uniform
 import os 
 import json
 
+
 class Sector():
     def __init__(self) -> None:
         self.num_fil = None
@@ -91,7 +92,7 @@ class SolverGurobi():
                                    for f in range(sector.num_fil) 
                                    for c in range(sector.num_col)),
                                        name=f"R{self.n_r}")
-            # Restriccion: Si hay un regador en f,c de radio r entonces no puede hacer un regador en 
+            # Restriccion: Si hay un regador en f,c de radio r entonces no puede haber un regador en 
             # los lugares que diga el diccionario
             for radio in self.R:
                 for fil in range(sector.num_fil):
@@ -110,11 +111,11 @@ class SolverGurobi():
                         key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
-                        self.model.addConstrs( 10000* (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
+                        self.model.addConstrs(10000 * (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
                                                == 
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
-                                               if tuple(f3, c3) in vecinos) , name=f"R{self.n_r}")
+                                               if tuple(f3, c3) in vecinos, name=f"R{self.n_r}")
 
     def set_constrains_obj(self):
         self.n_r += 2
@@ -141,7 +142,7 @@ class SolverGurobi():
                                            for f in range(sector.num_fil)) <= inversion)
     
     def set_objetivo(self):
-        funcion =  quicksum()
+        funcion = quicksum()
 
 
 """
