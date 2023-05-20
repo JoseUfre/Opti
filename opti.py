@@ -22,7 +22,7 @@ class SolverGurobi():
         self.col = None
         self.sectores = {}
         self.n_r = 0
-        self.R = set((6, 10, 14)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
+        self.R = set((3, 4, 5)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
                               # Tienen que pasar a cuadrados
 
         self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
@@ -77,6 +77,7 @@ class SolverGurobi():
             self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R,
                                                  vtype=GRB.BINARY,
                                                  name=nombre)
+            self.vars[f"r{sector.id}"] = self.model.addVars(F,C, vtype = GRB.BINARY, name = "r_f,c")
             
         self.vars["v"] = self.model.addVars(F,C,Z, vtype=GRB.INTEGER, name=f"v_f,c,z")
         self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = "e1")
@@ -109,7 +110,9 @@ class SolverGurobi():
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
                         key = (fil,col,radio)
-                        not_places: list = self.not_posible_places[sector.id][key]
+                        not_places: list = self.not_posible_places[sector.id].get(key)
+                        if not_places is None:
+                            continue
                         self.n_r += 1
                         self.model.addConstrs((1 - var[fil ,col, radio] >= quicksum(var[f2, c2, a] for a in self.R)
                                                for f2 in range(sector.num_fil)
@@ -128,19 +131,21 @@ class SolverGurobi():
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
                         key = (fil,col,radio)
-                        vecinos: list = self.vecinos_places[sector.id][key]
+                        vecinos: list = self.vecinos_places[sector.id].get(key)
+                        if vecinos is None:
+                            continue
                         self.n_r += 1
                         self.model.addConstrs((varvec[fil,col,z] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
 
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
-                                               if tuple(f3, c3) in vecinos),
+                                               if  (f3, c3) in vecinos),
                                                name=f"R{self.n_r}")
                         self.n_r += 1
                         self.model.addConstrs((varvec[fil,col,z] >= -10000*(1 - var[fil, col, radio]) + quicksum(var[f3,c3,a] for a in self.R)
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
-                                               if tuple(f3, c3) in vecinos),
+                                               if (f3, c3) in vecinos),
                                                name=f"R{self.n_r}")
                         self.n_r += 1
                         self.model.addConstr((varvec[fil,col,z] <= 10000*(var[fil, col, radio])),
@@ -153,17 +158,36 @@ class SolverGurobi():
         self.n_r += 1
         self.model.addConstr(self.vars["e"] <= 1-self.min_cover, name =f"R{self.n_r}")
         self.n_r += 1
-        self.model.addConstr(self.vars["e"] >= -0.15, name =f"R{self.n_r}")
+        self.model.addConstr(self.vars["e"] >= 0.0, name =f"R{self.n_r}")
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
+            varreg = self.vars[f"r{sector.id}"]
             e = self.vars["e"]
             dv = sector.num_col * sector.num_fil
+            for r in self.R:
+                for c in range(sector.num_col):
+                    for f in range(sector.num_fil):
+                        if self.posible_places[sector.id].get((f,c,r)) is None:
+                            continue
+                        self.n_r += 1
+                        self.model.addConstrs((var[f, c, r] <= varreg[l,h]
+                                            for h in range(sector.num_col)
+                                            for l in range(sector.num_fil) 
+                                            if (l,h) in self.regados[sector.id][(f, c, r)]), 
+                                            name = f"R{self.n_r}")
             self.n_r += 1
-            self.model.addConstr((quicksum(self.regados[sector.id][c, f, r] * var[c, f, r] for r in self.R
-                                           for c in range(sector.num_col)
-                                           for f in range(sector.num_fil))/dv) + e == 1.0,
-                                           name = f"R{self.n_r}")
+            self.model.addConstrs((varreg[l,h] <= quicksum(var[f,c,r] 
+                                            for r in self.R 
+                                            for c in range(r, sector.num_col-r)
+                                            for f in range(r, sector.num_fil-r)
+                                            if (l,h) in self.regados[sector.id].get((f,c,r))) 
+                                            for h in range(sector.num_col)
+                                            for l in range(sector.num_fil)), name = f"R{self.n_r}")
+            self.n_r += 1
+            self.model.addConstr((quicksum(varreg[l,h] 
+                                            for l in range(sector.num_fil)
+                                            for h in range(sector.num_col))/dv + e == 1), name = f"R{self.n_r}")
         print("Termine Setting Pasto cubierto constrais")
 
     def set_constrains_cost(self):
@@ -174,7 +198,8 @@ class SolverGurobi():
             var = self.vars[f"x{sector.id}"]
             costo = self.costo_aspersor
             self.n_r += 1
-            self.model.addConstr(costo * quicksum(var[f,c,r] for r in self.R
+            self.model.addConstr(costo * quicksum(var[f,c,r] 
+                                           for r in self.R
                                            for c in range(sector.num_col)
                                            for f in range(sector.num_fil)) <= inversion,name = f"R{self.n_r}" )
             
@@ -182,12 +207,11 @@ class SolverGurobi():
 
     def set_objetivo(self):
         print("Empeze a setear objetivo")
-        funcion = quicksum()
         varvec = self.vars["v"]
-        funcion = quicksum(varvec[f,c,z] for z in range(self.n_sectores)
-                           for c in range(self.sectores[z].num_col)
-                           for f in range(self.sectores[z].num_fil))
-        self.model.setObjective(funcion, GRB.MAXIMIZE) 
+        funcion = quicksum(varvec[f,c,0] 
+                           for c in range(self.sectores[0].num_col)
+                           for f in range(self.sectores[0].num_fil))
+        #self.model.setObjective(funcion, GRB.MAXIMIZE) 
         print("Termine setear objetivo")
     
     def optimizar(self):
@@ -198,6 +222,7 @@ class SolverGurobi():
         self.get_data()
         self.set_vars()
         self.set_constrs_sprinklers()
+        self.set_vecinos_cts()
         self.set_constrains_obj()
         self.set_constrains_cost()
         self.set_objetivo()
@@ -205,8 +230,8 @@ class SolverGurobi():
 
 if __name__ == "__main__":
     inversion1 = {}
-    inversion1[0] = 10000000
-    min_c1 = 0.9
+    inversion1[0] = 10000000000
+    min_c1 = 0.85
     c_a1 = 20000
     gurobi = SolverGurobi(inversion=inversion1, min_c=min_c1, c_a=c_a1)
     gurobi.start()

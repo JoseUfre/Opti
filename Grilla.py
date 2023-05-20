@@ -25,20 +25,19 @@ def Chl(radios, filas, columnas):
 
 
 def Whlr(radios, filas, columnas):
-    """
+    
     C1_hl = {}
 
     for r in radios:
         C1_hl[r] = [(f, c) for f in range(filas) for c in range(columnas) if
-                    no_sale(f, c, r, filas, columnas)]"""
+                    no_sale(f, c, r, filas, columnas)]
 
     W_hlr = {}
 
     for r in radios:
-        for x in range(filas):
-            for y in range(columnas):
-                W_hlr[(x, y, r)] = [(f, c) for f in range(filas) for c in range(columnas) if
-                                    riega(x, y, f, c, r)]
+        for (x, y) in C1_hl[r]:
+            W_hlr[(x, y, r)] = [(f, c) for f in range(filas) for c in range(columnas) if
+                                riega(x, y, f, c, r)]
     return W_hlr
 # ---------------------------------------------------------------------------------------------
 # Numero de lugares que son regados si pongo un regador de radio r en (x, y)
@@ -64,7 +63,7 @@ def Rhlr(radios, filas, columnas):
         for x, y in C1_hl[r]:
             R_hlr[(x, y, r)] = len(W_hlr[(x, y, r)])
 
-    return R_hlr
+    return W_hlr
 
 # ---------------------------------------------------------------------------------------------
 
