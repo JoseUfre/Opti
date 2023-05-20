@@ -1,5 +1,6 @@
 from gurobipy import GRB, Model, quicksum
 from random import randint, seed, uniform
+from Grilla import Chl, Whlr, Vhlr, Rhlr
 import os 
 import json
 
@@ -57,9 +58,10 @@ class SolverGurobi():
             z.num_fil = self.fil[n_sector]
             z.num_col = self.col[n_sector]
             self.sectores[z.id] = z
-        # For sector in sectores:
-            #haz grilla
-            # self.posibles_places[asdf] = return de grillaasfdasdf
+            self.posible_places = Chl(self.R, z.num_fil, z.num_col, z.id)
+            self.not_posible_places = Whlr(self.R, z.num_fil, z.num_col, z.id)
+            self.vecinos_places = Vhlr(self.R, z.num_fil, z.num_col, z.id)
+            self.regados = Rhlr(self.R, z.num_fil, z.num_col, z.id)
 
     def set_vars(self):
         print("Setting vars")
@@ -120,18 +122,16 @@ class SolverGurobi():
                         key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
-<<<<<<< HEAD
-<<<<<<< HEAD
                         self.model.addConstrs(10000 * (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
                                                == 
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if tuple(f3, c3) in vecinos, name=f"R{self.n_r}")
-=======
-                        self.model.addConstrs((varvec[fil,col] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
-=======
+
+                        self.model.addConstrs(varvec[fil,col] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R))
+
                         self.model.addConstrs((varvec[fil,col,z] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
->>>>>>> 66b86358e6b793c625ee37070d98c5879f90f5ba
+
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if tuple(f3, c3) in vecinos),
@@ -145,7 +145,7 @@ class SolverGurobi():
                         self.n_r += 1
                         self.model.addConstr((varvec[fil,col,z] <= 10000*(var[fil, col, radio])),
                                                name=f"R{self.n_r}")
->>>>>>> a37d8f021981f6d7ba1c68aa7d0bc92ec898dfd6
+
 
     def set_constrains_obj(self):
         self.n_r += 1
@@ -173,13 +173,9 @@ class SolverGurobi():
                                            for f in range(sector.num_fil)) <= inversion)
 
     def set_objetivo(self):
-<<<<<<< HEAD
-<<<<<<< HEAD
+
         funcion = quicksum()
-=======
         varvec = self.vars[f"v{sector.id}"]
->>>>>>> a37d8f021981f6d7ba1c68aa7d0bc92ec898dfd6
-=======
         varvec = self.vars["v"]
         funcion = quicksum(varvec[f,c,z] for z in range(self.n_sectores)
                            for c in range(self.sectores[z].num_col)
@@ -188,6 +184,6 @@ class SolverGurobi():
     
     def optimizar(self):
         self.model.optimize()
->>>>>>> 66b86358e6b793c625ee37070d98c5879f90f5ba
+
 
 
