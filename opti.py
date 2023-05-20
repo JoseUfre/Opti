@@ -3,7 +3,6 @@ from random import randint, seed, uniform
 import os 
 import json
 
-
 class Sector():
     def __init__(self) -> None:
         self.num_fil = None
@@ -13,7 +12,7 @@ class Sector():
 
 class SolverGurobi():
 
-    def __init__(self) -> None:
+    def __init__(self, inversion, min_c, c_a) -> None:
         self.model = Model()
         self.path = None
         self.n_sectores = None
@@ -32,8 +31,14 @@ class SolverGurobi():
 
         self.vecinos_places = {} # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
                                  # lista de valores donde si hay otro regador es vecino
+        
+        self.regados = {}
 
         self.vars = {}
+
+        self.inversion = inversion # Diccionario que tiene de llave el sector y la inversion a este
+        self.min_cover = min_c
+        self.costo_aspersor = c_a
 
     def get_data(self):
         print("Obteniendo sectores")
@@ -62,6 +67,8 @@ class SolverGurobi():
             self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R,
                                                  vtype=GRB.BINARY,
                                                  name=nombre)
+            self.vars[f"v{sector.id}"] = self.model.addVars(F,C, vtype=GRB.INTEGER, name=f"v{sector.id}_f,c")
+
         self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUE, name = "e1")
         self.model.update()
 
@@ -103,22 +110,39 @@ class SolverGurobi():
                         key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
-                        self.model.addConstrs((var[fil,col,radio] + quicksum(var[f3,c3,a] for a in self.R)
+                        self.model.addConstrs( 10000* (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
+                                               == 
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
-                                               if tuple(f3,c3) in vecinos), name=f"R{self.n_r}")
+                                               if tuple(f3, c3) in vecinos) , name=f"R{self.n_r}")
 
-    def set_constrains_obj(self, min_cover):
-        self.model.addConstr(self.vars["e"] <= 1-min_cover)
-        self.model.addConstr(self.vars["e"] >= 0.0)
+    def set_constrains_obj(self):
+        self.n_r += 2
+        self.model.addConstr(self.vars["e"] <= 1-self.min_cover)
+        self.model.addConstr(self.vars["e"] >= -0.15)
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
-            cte = 
-            self.model.addConstrs(quicksum(var[f,c,r] for r in self.R 
+            e = self.vars["e"]
+            dv = sector.num_col * sector.num_fil
+            self.n_r += 1
+            self.model.addConstr((quicksum(self.cte[c, f, r] * var[c, f, r] for r in self.R
                                            for c in range(sector.num_col)
-                                           for f in range(sector.num_fil)))
-            
+                                           for f in range(sector.num_fil))/dv) + e == 1.0,
+                                           name = f"R{self.n_r}")
+    def set_constrains_cost(self):
+        for id_sector in self.sectores.keys():
+            sector: Sector = self.sectores[id_sector]
+            inversion = self.inversion[id_sector]
+            var = self.vars[f"x{sector.id}"]
+            costo = self.costo_aspersor
+            self.model.addConstr(costo * quicksum(var[f,c,r] for r in self.R
+                                           for c in range(sector.num_col)
+                                           for f in range(sector.num_fil)) <= inversion)
+    
+    def set_objetivo(self):
+        funcion =  quicksum()
+
 
 """
 
