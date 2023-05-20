@@ -1,5 +1,10 @@
 {
     "num_sectores": 1,
+<<<<<<< HEAD
     "filas": [60,50,70],
     "columnas": [30, 50, 100]
+=======
+    "filas": [20],
+    "columnas": [20]
+>>>>>>> 28155248860beba4d4351de4eea9e486827ac68b
 }
