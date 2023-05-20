@@ -14,8 +14,7 @@ grid = [[c for c in range(columnas)] for f in range(filas)]
 C_hl = {}
 
 for r in radios:
-    C_hl[r] = [(f, c) for f in range(filas) for c in range(columnas) if
-               no_sale(f, c, r, filas, columnas)]
+    C_hl[r] = (set(range(r, filas - 1 - r)),set(columnas - 1 - r))
 
 
 # Lugares donde no puedo poner un regador excepto 
@@ -26,10 +25,10 @@ for r in radios:
 W_hlr = {}
 
 for r in radios:
-    for (x, y) in C_hl[r]:
-        W_hlr[(x, y)] = [(f, c) for f in range(filas) for c in range(columnas) if
+    for (x, y, r) in C_hl[r]:
+        W_hlr[(x, y, r)] = [(f, c) for f in range(filas) for c in range(columnas) if
                          riega(x, y, f, c, r)]
-        
+   
 #deberia incluir el radio en el diccionario? si
 
 print(C_hl)
@@ -40,11 +39,10 @@ for (x, y) in W_hlr:
 
 
 # Todos los lugares donde si se coloca un aspersor en (x,y) se hacen vecinos
+# Falta
 # Son vecinos si comparten pasto a regar
+
 V_xyr = {}
 
-for r1 in radios:
-    for (x, y) in C_hl[r1]:
-        V_xyr[(x, y)] = [(f, c) for f in range(filas) for c in range(columnas) if
-                         (x, y) != (f, c) and (f, c) in W_hlr[(x, y)]]
-        
+for r in radios:
+    

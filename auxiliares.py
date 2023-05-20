@@ -13,3 +13,7 @@ def riega(x, y, f, c, r):
         return True
     else:
         return False
+    
+def vecino(x, y, f, c, r):
+    pass
+
