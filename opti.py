@@ -75,8 +75,8 @@ class SolverGurobi():
                                                  vtype=GRB.BINARY,
                                                  name=nombre)
             
-        self.vars["v"] = self.model.addVars(F,C,Z vtype=GRB.INTEGER, name=f"v_f,c,z")
-        self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUE, name = "e1")
+        self.vars["v"] = self.model.addVars(F, C, Z, vtype=GRB.INTEGER, name=f"v_f,c,z")
+        self.vars["e"] = self.model.addVar(vtype=GRB.CONTINUE, name = "e1")
         self.model.update()
 
     def set_constrs_sprinklers(self):
@@ -123,7 +123,7 @@ class SolverGurobi():
                         vecinos: list = self.vecinos_places[key]
                         self.n_r += 1
                         self.model.addConstrs(10000 * (1 - var[fil, col, radio]) var[fil, col, radio] + quicksum(var[f3,c3,a] for a in self.R) 
-                                               == 
+                                              == 
                                                for f3 in range(sector.num_fil)
                                                for c3 in range(sector.num_col)
                                                if tuple(f3, c3) in vecinos, name=f"R{self.n_r}")
@@ -187,3 +187,5 @@ class SolverGurobi():
 
 
 
+Modelo = SolverGurobi(1000, 0.9, 50)
+Modelo.optimizar()
