@@ -1,5 +1,5 @@
 {
-    "num_sectores": 3,
-    "filas": [60,50,70],
-    "columnas": [30, 50, 100]
+    "num_sectores": 1,
+    "filas": [45],
+    "columnas": [90]
 }
