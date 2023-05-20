@@ -31,6 +31,8 @@ for r in radios:
 # Lugares donde no puedo poner un regador excepto
 # para distancias = r (para arriba, abajo, derecha, izquierda)
 
+#   POR AHORA ESTE CONJUNTO ES EL MISMO QUE DONDE SI SE RIEGA (W_hlr)
+
 # ----------------------------------------------------------------------------------------------
 # Todos los lugares que son regados si se pone un regador en (x, y)
 
@@ -40,7 +42,7 @@ for r in radios:
     for (x, y) in C1_hl[r]:
         W_hlr[(x, y, r)] = [(f, c) for f in range(filas) for c in range(columnas) if
                             riega(x, y, f, c, r)]
-    
+
 # ---------------------------------------------------------------------------------------------
 # Numero de lugares que son regados si pongo un regador de radio r en (x, y)
 
@@ -60,4 +62,3 @@ V_xyr = {}
 for r in radios:
     for x, y in C1_hl[r]:
         V_xyr[(x, y, r)] = vecino(x, y, r, filas, columnas)
-
