@@ -26,13 +26,17 @@ class SolverGurobi():
 
         self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
                                  # tupla de valores (F,C) donde se puede colocar el regador de dicho radio
-                                
+                 
         self.not_posible_places = {} # Diccionario que de llave tiene el "fila,columna,radio" y de valor tiene una
                                      # lista de valores donde no puede haber otro regador de la forma 
-                                 
+
+        self.vecinos_places = {} # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
+                                 # lista de valores donde si hay otro regador es vecino
+
         self.vars = {}
 
     def get_data(self):
+        print("Obteniendo sectores")
         with open(self.path, "r") as file:
             info = json.load(file)
             self.n_sectores = info["num_sectores"]
@@ -49,6 +53,7 @@ class SolverGurobi():
             self.sectores[z.id] = z
 
     def set_vars(self):
+        print("Setting vars")
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             F = range(sector.num_fil)
@@ -57,20 +62,21 @@ class SolverGurobi():
             self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R,
                                                  vtype=GRB.BINARY,
                                                  name=nombre)
+        self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUE, name = "e1")
         self.model.update()
- 
+
     def set_constrs_sprinklers(self):
+        print("Setting sprinklers constrais")
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
-            var = self.vars[sector.id]
+            var = self.vars[f"x{sector.id}"]
             # Restriccion solo haber a lo mas un regador en dicho cuadrado
             for radio in self.R:
                 self.n_r += 1
-                set_radio = set(radio)
                 key = str(radio)+", "+str(sector.id)
                 F, C = self.posible_places[key]
                 # Restriccion solo haber a lo mas un regador en dicho cuadrado de ese radio
-                self.model.addConstrs((var[f,c,r] <= 1 for f in F for c in C for r in set_radio),
+                self.model.addConstrs((var[f,c,radio] <= 1 for f in F for c in C),
                                        name=f"R{self.n_r}")
             # Restriccion solo haber a lo mas un regador de cualquier tipo en la casilla
             self.n_r += 1
@@ -79,13 +85,40 @@ class SolverGurobi():
                                    for c in range(sector.num_col)),
                                        name=f"R{self.n_r}")
             # Restriccion: Si hay un regador en f,c de radio r entonces no puede hacer un regador en 
-            # los lugares que diga el 
+            # los lugares que diga el diccionario
+            for radio in self.R:
+                for fil in range(sector.num_fil):
+                    for col in range(sector.num_col):
+                        key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
+                        not_places: list = self.not_posible_places[key]
+                        self.n_r += 1
+                        self.model.addConstrs((1 - var[fil,col,radio] >= quicksum(var[f2,c2,a] for a in self.R)
+                                               for f2 in range(sector.num_fil)
+                                               for c2 in range(sector.num_col)
+                                               if tuple(f2,c2) in not_places), name=f"R{self.n_r}")
+            # Restriccion: Saber si hay vecino. 
+            for radio in self.R:
+                for fil in range(sector.num_fil):
+                    for col in range(sector.num_col):
+                        key = str(fil)+","+str(col)+","+str(radio)+","+str(sector.id)
+                        vecinos: list = self.vecinos_places[key]
+                        self.n_r += 1
+                        self.model.addConstrs((var[fil,col,radio] + quicksum(var[f3,c3,a] for a in self.R)
+                                               for f3 in range(sector.num_fil)
+                                               for c3 in range(sector.num_col)
+                                               if tuple(f3,c3) in vecinos), name=f"R{self.n_r}")
+
+    def set_constrains_obj(self, min_cover):
+        self.model.addConstr(self.vars["e"] <= 1-min_cover)
+        self.model.addConstr(self.vars["e"] >= 0.0)
+        for id_sector in self.sectores.keys():
+            sector: Sector = self.sectores[id_sector]
+            var = self.vars[f"x{sector.id}"]
+            cte = 
+            self.model.addConstrs(quicksum(var[f,c,r] for r in self.R 
+                                           for c in range(sector.num_col)
+                                           for f in range(sector.num_fil)))
             
-            
-
-
-
-
 
 """
 
