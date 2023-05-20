@@ -79,7 +79,7 @@ class SolverGurobi():
                                                  name=nombre)
             self.vars[f"r{sector.id}"] = self.model.addVars(F,C, vtype = GRB.BINARY, name = "r_f,c")
             
-        self.vars["v"] = self.model.addVars(F,C,Z, vtype=GRB.INTEGER, name=f"v_f,c,z")
+        self.vars["v"] = self.model.addVars(F,C,F,C, vtype=GRB.BINARY, name=f"v_f,c,l,h")
         self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = "e1")
         self.model.update()
         print("Termine vars")
@@ -135,20 +135,22 @@ class SolverGurobi():
                         if vecinos is None:
                             continue
                         self.n_r += 1
-                        self.model.addConstrs((varvec[fil,col,z] <= 10000*(1 - var[fil, col, radio])  + quicksum(var[f3,c3,a] for a in self.R)
-                                               for f3 in range(sector.num_fil)
-                                               for c3 in range(sector.num_col)
-                                               if  (f3, c3) in vecinos),
-                                               name=f"R{self.n_r}")
+                        self.model.addConstrs((var[fil,col,radio] + quicksum(var[l,h,a] for a in self.R)
+                                              <= 1 + varvec[fil,col,l,h]
+                                              for l in range(sector.num_fil)
+                                              for h in range(sector.num_col)
+                                              if (l,h) in vecinos) , name = f"R{self.n_r}")
                         self.n_r += 1
-                        self.model.addConstrs((varvec[fil,col,z] >= -10000*(1 - var[fil, col, radio]) + quicksum(var[f3,c3,a] for a in self.R)
-                                               for f3 in range(sector.num_fil)
-                                               for c3 in range(sector.num_col)
-                                               if (f3, c3) in vecinos),
-                                               name=f"R{self.n_r}")
+                        self.model.addConstrs((var[fil,col,radio] >=  varvec[fil,col,l,h]
+                                              for l in range(sector.num_fil)
+                                              for h in range(sector.num_col)
+                                              if (l,h) in vecinos) , name = f"R{self.n_r}")
                         self.n_r += 1
-                        self.model.addConstr((varvec[fil,col,z] <= 10000*(var[fil, col, radio])),
-                                               name=f"R{self.n_r}")
+                        
+                        self.model.addConstrs((quicksum(var[l,h,a] for a in self.R)>=  varvec[fil,col,l,h]
+                                              for l in range(sector.num_fil)
+                                              for h in range(sector.num_col)
+                                              if (l,h) in vecinos) , name = f"R{self.n_r}")
         print("Termine Setting Vecinos constrais")
 
 
@@ -207,9 +209,11 @@ class SolverGurobi():
     def set_objetivo(self):
         print("Empeze a setear objetivo")
         varvec = self.vars["v"]
-        funcion = quicksum(varvec[f,c,0] 
+        funcion = quicksum(varvec[f,c,l,h] 
                            for c in range(self.sectores[0].num_col)
-                           for f in range(self.sectores[0].num_fil))
+                           for f in range(self.sectores[0].num_fil)
+                           for l in range(self.sectores[0].num_fil)
+                           for h in range(self.sectores[0].num_col))
         self.model.setObjective(funcion, GRB.MAXIMIZE) 
         print("Termine setear objetivo")
     
