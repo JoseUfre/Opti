@@ -14,7 +14,13 @@ grid = [[c for c in range(columnas)] for f in range(filas)]
 C_hl = {}
 
 for r in radios:
-    C_hl[r] = (set(range(r, filas - 1 - r)),set(columnas - 1 - r))
+    C_hl[r] = (set(range(r, filas - 1 - r)), set(range(r, columnas - 1 - r)))
+
+C1_hl = {}
+
+for r in radios:
+    C1_hl[r] = [(f, c) for f in range(filas) for c in range(columnas) if
+               no_sale(f, c, r, filas, columnas)]
 
 
 # Lugares donde no puedo poner un regador excepto 
@@ -25,9 +31,17 @@ for r in radios:
 W_hlr = {}
 
 for r in radios:
-    for (x, y, r) in C_hl[r]:
+    for (x, y) in C_hl[r]:
         W_hlr[(x, y, r)] = [(f, c) for f in range(filas) for c in range(columnas) if
                          riega(x, y, f, c, r)]
+
+R_hlr = {}
+
+for r in radios:
+    for x, y in C1_hl[r]:
+        R_hlr[(x, y, r)] = len(W_hlr[(x, y, r)])
+
+
    
 #deberia incluir el radio en el diccionario? si
 
@@ -45,4 +59,4 @@ for (x, y) in W_hlr:
 V_xyr = {}
 
 for r in radios:
-    
+    for x, y in C1_hl[r]:
