@@ -22,7 +22,7 @@ class SolverGurobi():
         self.col = None
         self.sectores = {}
         self.n_r = 0
-        self.R = set((3, 4, 5)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
+        self.R = set((1,2,3, 4, 5)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
                               # Tienen que pasar a cuadrados
 
         self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
@@ -229,12 +229,20 @@ class SolverGurobi():
         for i in range(self.sectores[0].num_fil):
             fila = []
             for j in range(self.sectores[0].num_col):
+                encontre = False
                 for a in self.R:
+                    radio = 0
                     if var[i,j,a].x == 1:
                         print(f"fila {i} columna {j} radio{a}", var[i,j,a].x)
-                        fila.append(str(a))
+                        encontre = True
+                        radio = a
+                        break
                     if var[i,j,a].x == 0:
-                        fila.append(str(0))
+                        continue
+                if encontre:
+                    fila.append(str(radio))
+                else:
+                    fila.append("0")
             sector.append(fila)
 
         with open("sector.txt", "w") as file:
@@ -260,7 +268,7 @@ class SolverGurobi():
 if __name__ == "__main__":
     inversion1 = {}
     inversion1[0] = 100000000000000
-    min_c1 = 0.85
+    min_c1 = 0.90
     c_a1 = 20000
     gurobi = SolverGurobi(inversion=inversion1, min_c=min_c1, c_a=c_a1)
     gurobi.start()
