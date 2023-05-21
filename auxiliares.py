@@ -35,5 +35,4 @@ def vecino(f, c, r, fil, col):
     for x, y in opciones:
         if no_sale(x, y, r, fil, col):
             vec.append((x, y))
-    
     return vec
