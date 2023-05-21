@@ -221,6 +221,31 @@ class SolverGurobi():
         print("Empeze a optimizar")
         self.model.optimize()
     
+    def analizar(self):
+        sector = []
+        fila = []
+
+        var = self.vars["x0"]
+        for i in range(self.sectores[0].num_fil):
+            fila = []
+            for j in range(self.sectores[0].num_col):
+                for a in self.R:
+                    if var[i,j,a].x == 1:
+                        print(f"fila {i} columna {j} radio{a}", var[i,j,a].x)
+                        fila.append(str(a))
+                    if var[i,j,a].x == 0:
+                        fila.append(str(0))
+            sector.append(fila)
+
+        with open("sector.txt", "w") as file:
+            for fila in sector:
+                fila.append("\n")
+                file.write("|".join(fila))
+        
+                        
+                        
+                        
+    
     def start(self):
         self.get_data()
         self.set_vars()
@@ -230,10 +255,11 @@ class SolverGurobi():
         self.set_constrains_cost()
         self.set_objetivo()
         self.optimizar()
+        self.analizar()
 
 if __name__ == "__main__":
     inversion1 = {}
-    inversion1[0] = 10000000000
+    inversion1[0] = 100000000000000
     min_c1 = 0.85
     c_a1 = 20000
     gurobi = SolverGurobi(inversion=inversion1, min_c=min_c1, c_a=c_a1)
