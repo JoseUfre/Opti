@@ -133,6 +133,7 @@ class SolverGurobi():
             self.vars[f"r{sector.id}"] = self.model.addVars(F,C, vtype = GRB.BINARY, name = f"r{sector.id}_f,c")
             self.vars[f"v{sector.id}"] = self.model.addVars(F,C,F,C, vtype=GRB.BINARY, name=f"v{sector.id}_f,c,l,h")
             self.vars[f"e{sector.id}"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = f"e{sector.id}")
+            self.vars[f"aux{sector.id}"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = f"aux{sector.id}")
         self.model.update()
         print("Termine vars")
 
@@ -254,10 +255,16 @@ class SolverGurobi():
             var = self.vars[f"x{sector.id}"]
             costo = self.costo_aspersor
             self.n_r += 1
-            self.model.addConstr(costo * quicksum(var[f,c,r] 
+            self.model.addConstr((costo * quicksum(var[f,c,r] 
                                            for r in self.R
                                            for c in range(sector.num_col)
-                                           for f in range(sector.num_fil)) <= inversion,name = f"R{self.n_r}" )
+                                           for f in range(sector.num_fil)) <= inversion),name = f"R{self.n_r}" )
+            self.n_r += 1
+            self.model.addConstr((costo * quicksum(var[f,c,r] 
+                                           for r in self.R
+                                           for c in range(sector.num_col)
+                                           for f in range(sector.num_fil)) == self.vars[f"aux{sector.id}"]), name =f"R{self.n_r}" )
+            
             
         print("Termine setting Costo constrais")
 
@@ -285,6 +292,7 @@ class SolverGurobi():
             with open("sector.txt", "w") as file:
                 for id_sector in self.sectores.keys():
                     print("e", self.vars[f"e{id_sector}"])
+                    print("aux", self.vars[f"aux{id_sector}"])
                     file.write(f"Mostrando sector {id_sector}\n")
                     sector = []
                     fila = []

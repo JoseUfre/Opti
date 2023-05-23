@@ -10,7 +10,7 @@ def Chl(radios, filas, columnas):
 
     C_hl = {}
     for r in radios:
-        C_hl[r] = (set(range(r, filas - 1 - r)), set(range(r, columnas - 1 - r)))
+        C_hl[r] = (set(range(r, filas - r)), set(range(r, columnas - r)))
     return C_hl
 
 # ------------------------------------------------------------------------------------------
