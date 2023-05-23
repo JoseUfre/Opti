@@ -284,6 +284,7 @@ class SolverGurobi():
         if self.model.SolCount >= 1:
             with open("sector.txt", "w") as file:
                 for id_sector in self.sectores.keys():
+                    print("e", self.vars[f"e{id_sector}"])
                     file.write(f"Mostrando sector {id_sector}\n")
                     sector = []
                     fila = []
