@@ -103,6 +103,7 @@ class SolverGurobi():
             for linea in w_list:
                 for valor in linea:
                     self.min_cover = float(valor)
+            print(self.min_cover)
         self.process_data()
         print("Termine Obteniendo sector")
 
