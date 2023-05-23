@@ -17,7 +17,6 @@ class SolverGurobi():
 
     def __init__(self) -> None:
         self.model = Model()
-        self.path = ["radios.xlsx", "sector_pasto.xlsx", ]
         self.n_sectores = 0
         self.fil = {}
         self.col = {}
