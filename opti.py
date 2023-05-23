@@ -14,15 +14,14 @@ class Sector():
 
 class SolverGurobi():
 
-    def __init__(self, inversion, min_c, c_a) -> None:
+    def __init__(self) -> None:
         self.model = Model()
-        self.path = "sectores.json"
         self.n_sectores = None
         self.fil = None
         self.col = None
         self.sectores = {}
         self.n_r = 0
-        self.R = set((1,2,3, 4, 5)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
+        self.R = set() # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
                               # Tienen que pasar a cuadrados
 
         self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
@@ -38,17 +37,70 @@ class SolverGurobi():
 
         self.vars = {}
 
-        self.inversion = inversion # Diccionario que tiene de llave el sector y la inversion a este
-        self.min_cover = min_c
-        self.costo_aspersor = c_a
+        self.inversion = {} # Diccionario que tiene de llave el sector y la inversion a este
+        self.min_cover = None
+        self.costo_aspersor = None
 
     def get_data(self):
         print("Obteniendo sector")
-        with open(self.path, "r") as file:
-            info = json.load(file)
-            self.n_sectores = info["num_sectores"]
-            self.fil = info["filas"]
-            self.col = info["columnas"]
+        with open("Radios.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.R.add(int(valor))
+
+        with open("Dim_sectores.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                n = 0 
+                for valor in linea:
+                    self.n_sectores +=1
+                    fila, columna = valor.split("x")
+                    fila = int(fila)
+                    columna = int(columna)
+                    self.fil[n] = fila
+                    self.col[n] = columna
+                    n +=1
+
+        with open("Inversiones.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                n = 0 
+                for valor in linea:
+                    self.inversion[n] =int(valor)
+                    n +=1
+
+        with open("Costo.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.costo_aspersor = int(valor)
+        
+        with open("Cobertura.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.min_cover = float(valor)
         self.process_data()
         print("Termine Obteniendo sector")
 

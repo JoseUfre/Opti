@@ -3,6 +3,7 @@ from random import randint, seed, uniform
 from Grilla import Chl, Whlr, Vhlr, Rhlr
 import os 
 import json
+import csv
 
 
 class Sector():
@@ -14,41 +15,94 @@ class Sector():
 
 class SolverGurobi():
 
-    def __init__(self, inversion, min_c, c_a) -> None:
+    def __init__(self) -> None:
         self.model = Model()
-        self.path = "sectores.json"
-        self.n_sectores = None
-        self.fil = None
-        self.col = None
+        self.path = ["radios.xlsx", "sector_pasto.xlsx", ]
+        self.n_sectores = 0
+        self.fil = {}
+        self.col = {}
         self.sectores = {}
         self.n_r = 0
-        self.R = set((1,2,3, 4, 5)) # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
+        self.R = set() # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
                               # Tienen que pasar a cuadrados
 
         self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
                                  # tupla de valores (F,C) donde se puede colocar el regador de dicho radio
-                 
+   
         self.not_posible_places = {} # Diccionario que de llave tiene el "fila,columna,radio" y de valor tiene una
                                      # lista de valores donde no puede haber otro regador de la forma 
 
         self.vecinos_places = {} # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
                                  # lista de valores donde si hay otro regador es vecino
-        
+
         self.regados = {}
 
         self.vars = {}
 
-        self.inversion = inversion # Diccionario que tiene de llave el sector y la inversion a este
-        self.min_cover = min_c
-        self.costo_aspersor = c_a
+        self.inversion = {} # Diccionario que tiene de llave el sector y la inversion a este
+        self.min_cover = None 
+        self.costo_aspersor = None
 
     def get_data(self):
         print("Obteniendo sector")
-        with open(self.path, "r") as file:
-            info = json.load(file)
-            self.n_sectores = info["num_sectores"]
-            self.fil = info["filas"]
-            self.col = info["columnas"]
+        with open("Radios.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.R.add(int(valor))
+
+        with open("Dim_sectores.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                n = 0 
+                for valor in linea:
+                    self.n_sectores +=1
+                    fila, columna = valor.split("x")
+                    fila = int(fila)
+                    columna = int(columna)
+                    self.fil[n] = fila
+                    self.col[n] = columna
+                    n +=1
+
+        with open("Inversiones.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                n = 0 
+                for valor in linea:
+                    self.inversion[n] =int(valor)
+                    n +=1
+
+        with open("Costo.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.costo_aspersor = int(valor)
+        
+        with open("Cobertura.csv", "rt", encoding="utf-8") as archivo:
+            raw_list = archivo.readlines()
+            w_list = []
+            for e in raw_list:
+                w_list.append(e.strip().split(","))
+            w_list.pop(0)
+            for linea in w_list:
+                for valor in linea:
+                    self.min_cover = float(valor)
         self.process_data()
         print("Termine Obteniendo sector")
 
@@ -78,7 +132,7 @@ class SolverGurobi():
                                                  name=nombre)
             self.vars[f"r{sector.id}"] = self.model.addVars(F,C, vtype = GRB.BINARY, name = f"r{sector.id}_f,c")
             self.vars[f"v{sector.id}"] = self.model.addVars(F,C,F,C, vtype=GRB.BINARY, name=f"v{sector.id}_f,c,l,h")
-        self.vars["e"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = "e1")
+            self.vars[f"e{sector.id}"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = f"e{sector.id}")
         self.model.update()
         print("Termine vars")
 
@@ -96,6 +150,9 @@ class SolverGurobi():
                 # Restriccion solo haber a lo mas un regador en dicho cuadrado de ese radio
                 self.model.addConstrs((var[f,c,radio] <= 1 for f in F for c in C),
                                        name=f"R{self.n_r}")
+                self.model.addConstrs((var[f,c,radio] == 0 for f in range(sector.num_fil)
+                                           for c in range(sector.num_col) 
+                                           if (not f in F) or (not c in C)))
             # Restriccion solo haber a lo mas un regador de cualquier tipo en la casilla
             self.n_r += 1
             self.model.addConstrs((quicksum(var[f, c, r] for r in self.R) <= 1
@@ -115,7 +172,7 @@ class SolverGurobi():
                         self.model.addConstrs((1 - var[fil ,col, radio] >= quicksum(var[f2, c2, a] for a in self.R)
                                                for f2 in range(sector.num_fil)
                                                for c2 in range(sector.num_col)
-                                               if tuple([f2, c2]) in not_places), name=f"R{self.n_r}")
+                                               if (f2, c2) in not_places), name=f"R{self.n_r}")
         print("Termine Setting sprinklers constrais")
 
     def set_vecinos_cts(self):
@@ -154,15 +211,15 @@ class SolverGurobi():
 
     def set_constrains_obj(self):
         print("Setting Pasto cubierto constrais")
-        self.n_r += 1
-        self.model.addConstr(self.vars["e"] <= 1-self.min_cover, name =f"R{self.n_r}")
-        self.n_r += 1
-        self.model.addConstr(self.vars["e"] >= 0.0, name =f"R{self.n_r}")
         for id_sector in self.sectores.keys():
+            self.n_r += 1
+            self.model.addConstr(self.vars[f"e{id_sector}"] <= 1-self.min_cover, name =f"R{self.n_r}")
+            self.n_r += 1
+            self.model.addConstr(self.vars[f"e{id_sector}"] >= 0.0, name =f"R{self.n_r}")
             sector: Sector = self.sectores[id_sector]
             var = self.vars[f"x{sector.id}"]
             varreg = self.vars[f"r{sector.id}"]
-            e = self.vars["e"]
+            e = self.vars[f"e{id_sector}"]
             dv = sector.num_col * sector.num_fil
             for r in self.R:
                 for c in range(sector.num_col):
@@ -209,7 +266,7 @@ class SolverGurobi():
         global_function = 0.0
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
-            varvec = self.vars[sector.id]
+            varvec = self.vars[f"v{sector.id}"]
             funcion_sector = quicksum(varvec[f,c,l,h] 
                             for c in range(self.sectores[id_sector].num_col)
                             for f in range(self.sectores[id_sector].num_fil)
@@ -224,35 +281,37 @@ class SolverGurobi():
         self.model.optimize()
     
     def analizar(self):
-        with open("sector.txt", "w") as file:
-            for id_sector in self.sectores.keys():
-                file.write(f"Mostrando sector {id_sector}\n")
-                sector = []
-                fila = []
-                var = self.vars[f"x{id_sector}"]
-                for i in range(self.sectores[id_sector].num_fil):
+        if self.model.SolCount >= 1:
+            with open("sector.txt", "w") as file:
+                for id_sector in self.sectores.keys():
+                    file.write(f"Mostrando sector {id_sector}\n")
+                    sector = []
                     fila = []
-                    for j in range(self.sectores[id_sector].num_col):
-                        encontre = False
-                        for a in self.R:
-                            radio = 0
-                            if var[i,j,a].x == 1:
-                                print(f"fila {i} columna {j} radio{a}", var[i,j,a].x)
-                                encontre = True
-                                radio = a
-                                break
-                            if var[i,j,a].x == 0:
-                                continue
-                        if encontre:
-                            fila.append(str(radio))
-                        else:
-                            fila.append("0")
-                    sector.append(fila)
-                for fila in sector:
-                    fila.append("\n")
-                    file.write("|".join(fila))
+                    var = self.vars[f"x{id_sector}"]
+                    for i in range(self.sectores[id_sector].num_fil):
+                        fila = []
+                        for j in range(self.sectores[id_sector].num_col):
+                            encontre = False
+                            for a in self.R:
+                                radio = 0
+                                if var[i,j,a].x == 1:
+                                    print(f"fila {i} columna {j} radio{a}", var[i,j,a].x)
+                                    encontre = True
+                                    radio = a
+                                    break
+                                if var[i,j,a].x == 0:
+                                    continue
+                            if encontre:
+                                fila.append(str(radio))
+                            else:
+                                fila.append("0")
+                        sector.append(fila)
+                    for fila in sector:
+                        fila.append("\n")
+                        file.write("|".join(fila))
+        else: print("error")
         
-                        
+                 
     def start(self):
         self.get_data()
         self.set_vars()
@@ -265,10 +324,5 @@ class SolverGurobi():
         self.analizar()
 
 if __name__ == "__main__":
-    inversion1 = {}
-    inversion1[0] = 100000000000000
-    inversion1[1] = 100000000000000
-    min_c1 = 0.90
-    c_a1 = 20000
-    gurobi = SolverGurobi(inversion=inversion1, min_c=min_c1, c_a=c_a1)
+    gurobi = SolverGurobi()
     gurobi.start()
