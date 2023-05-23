@@ -310,8 +310,8 @@ class SolverGurobi():
                         fila.append("\n")
                         file.write("|".join(fila))
         else: print("error")
-        
-                 
+
+      
     def start(self):
         self.get_data()
         self.set_vars()
