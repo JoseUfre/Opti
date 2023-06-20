@@ -1,9 +1,6 @@
 from gurobipy import GRB, Model, quicksum
 from random import randint, seed, uniform
 from Grilla import Chl, Whlr, Vhlr, Rhlr
-import os 
-import json
-import csv
 
 
 class Sector():
@@ -54,7 +51,7 @@ class SolverGurobi():
                 for valor in linea:
                     self.R.add(int(valor))
 
-        with open("Dim_sectores.csv", "rt", encoding="utf-8") as archivo:
+        with open("Sectores.csv", "rt", encoding="utf-8") as archivo:
             raw_list = archivo.readlines()
             w_list = []
             for e in raw_list:
@@ -102,7 +99,6 @@ class SolverGurobi():
             for linea in w_list:
                 for valor in linea:
                     self.min_cover = float(valor)
-            print(self.min_cover)
         self.process_data()
         print("Termine Obteniendo sector")
 
@@ -148,9 +144,7 @@ class SolverGurobi():
                 self.n_r += 1
                 key = radio
                 F, C = self.posible_places[sector.id][key]
-                # Restriccion solo haber a lo mas un regador en dicho cuadrado de ese radio
-                self.model.addConstrs((var[f,c,radio] <= 1 for f in F for c in C),
-                                       name=f"R{self.n_r}")
+      
                 self.model.addConstrs((var[f,c,radio] == 0 for f in range(sector.num_fil)
                                            for c in range(sector.num_col) 
                                            if (not f in F) or (not c in C)))
@@ -165,12 +159,12 @@ class SolverGurobi():
             for radio in self.R:
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
-                        key = (fil,col,radio)
+                        key = (fil, col, radio)
                         not_places: list = self.not_posible_places[sector.id].get(key)
                         if not_places is None:
                             continue
                         self.n_r += 1
-                        self.model.addConstrs((1 - var[fil ,col, radio] >= quicksum(var[f2, c2, a] for a in self.R)
+                        self.model.addConstrs((1 - var[fil, col, radio] >= quicksum(var[f2, c2, a] for a in self.R)
                                                for f2 in range(sector.num_fil)
                                                for c2 in range(sector.num_col)
                                                if (f2, c2) in not_places), name=f"R{self.n_r}")
@@ -196,13 +190,12 @@ class SolverGurobi():
                                               for l in range(sector.num_fil)
                                               for h in range(sector.num_col)
                                               if (l,h) in vecinos) , name = f"R{self.n_r}")
-                        self.n_r += 1
-                        self.model.addConstrs((var[fil,col,radio] >=  varvec[fil,col,l,h]
-                                              for l in range(sector.num_fil)
-                                              for h in range(sector.num_col)
-                                              if (l,h) in vecinos) , name = f"R{self.n_r}")
-                        self.n_r += 1
-                        
+                        #self.n_r += 1
+                        #self.model.addConstrs((var[fil,col,radio] >=  varvec[fil,col,l,h]
+                                              #for l in range(sector.num_fil)
+                                              #for h in range(sector.num_col)
+                                              #if (l,h) in vecinos) , name = f"R{self.n_r}")
+                        self.n_r += 1               
                         self.model.addConstrs((quicksum(var[l,h,a] for a in self.R)>=  varvec[fil,col,l,h]
                                               for l in range(sector.num_fil)
                                               for h in range(sector.num_col)
@@ -263,9 +256,7 @@ class SolverGurobi():
             self.model.addConstr((costo * quicksum(var[f,c,r] 
                                            for r in self.R
                                            for c in range(sector.num_col)
-                                           for f in range(sector.num_fil)) == self.vars[f"aux{sector.id}"]), name =f"R{self.n_r}" )
-            
-            
+                                           for f in range(sector.num_fil)) == self.vars[f"aux{sector.id}"]), name =f"R{self.n_r}" )    
         print("Termine setting Costo constrais")
 
     def set_objetivo(self):
@@ -274,25 +265,26 @@ class SolverGurobi():
         for id_sector in self.sectores.keys():
             sector: Sector = self.sectores[id_sector]
             varvec = self.vars[f"v{sector.id}"]
-            funcion_sector = quicksum(varvec[f,c,l,h] 
+            funcion_sector = quicksum(varvec[f,c,l,h]
                             for c in range(self.sectores[id_sector].num_col)
                             for f in range(self.sectores[id_sector].num_fil)
                             for l in range(self.sectores[id_sector].num_fil)
-                            for h in range(self.sectores[id_sector].num_col))
+                            for h in range(self.sectores[id_sector].num_col)
+                            if (c,f) != (l,h))
             global_function += funcion_sector
-        self.model.setObjective(global_function, GRB.MAXIMIZE) 
+        self.model.setObjective(global_function, GRB.MAXIMIZE)
         print("Termine setear objetivo")
-    
+
     def optimizar(self):
         print("Empeze a optimizar")
         self.model.optimize()
-    
+
     def analizar(self):
         if self.model.SolCount >= 1:
+            print(f"Valor objetivo {self.model.Obj}")
             with open("sector.txt", "w") as file:
                 for id_sector in self.sectores.keys():
                     print("e", self.vars[f"e{id_sector}"])
-                    print("aux", self.vars[f"aux{id_sector}"])
                     file.write(f"Mostrando sector {id_sector}\n")
                     sector = []
                     fila = []
@@ -303,12 +295,12 @@ class SolverGurobi():
                             encontre = False
                             for a in self.R:
                                 radio = 0
-                                if var[i,j,a].x == 1:
-                                    print(f"fila {i} columna {j} radio{a}", var[i,j,a].x)
+                                if var[i, j, a].x == 1:
+                                    print(f"fila {i} columna {j} radio {a}", var[i,j,a].x)
                                     encontre = True
                                     radio = a
                                     break
-                                if var[i,j,a].x == 0:
+                                if var[i, j, a].x == 0:
                                     continue
                             if encontre:
                                 fila.append(str(radio))
@@ -318,9 +310,9 @@ class SolverGurobi():
                     for fila in sector:
                         fila.append("\n")
                         file.write("|".join(fila))
-        else: print("error")
+        else:
+            print("error")
 
-      
     def start(self):
         self.get_data()
         self.set_vars()
