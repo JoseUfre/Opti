@@ -337,8 +337,12 @@ class SolverGurobi():
                             a = np.array((fila, col))
                             for le, h in self.regados[id][(fila, col, radio)]:
                                 grid[le, h] += self.get_reg(radio, le, h, a)
+            size = sector.num_fil*sector.num_col
             mean = np.mean(grid)
-            sectores.append(mean)
+            std = np.std(grid)
+            uc = 1 - (std/(mean*np.sqrt(size)))
+            sectores.append((mean, std, uc))
+            print(sectores)
 
     def start(self):
         self.get_data()
