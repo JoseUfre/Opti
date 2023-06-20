@@ -1,6 +1,7 @@
 from gurobipy import GRB, Model, quicksum
 from random import randint, seed, uniform
 from Grilla import Chl, Whlr, Vhlr, Rhlr
+import numpy as np 
 
 
 class Sector():
@@ -8,6 +9,10 @@ class Sector():
         self.num_fil = None
         self.num_col = None
         self.id = None
+
+class Casilla():
+    def __init__(self) -> None:
+        self.riego = 0
 
 
 class SolverGurobi():
@@ -31,7 +36,7 @@ class SolverGurobi():
         self.vecinos_places = {} # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
                                  # lista de valores donde si hay otro regador es vecino
 
-        self.regados = {}
+        self.regados = {} # Diccionario que tiene llave fila col radio y da todos los regados
 
         self.vars = {}
 
@@ -89,7 +94,7 @@ class SolverGurobi():
             for linea in w_list:
                 for valor in linea:
                     self.costo_aspersor = int(valor)
-        
+
         with open("Cobertura.csv", "rt", encoding="utf-8") as archivo:
             raw_list = archivo.readlines()
             w_list = []
@@ -144,7 +149,6 @@ class SolverGurobi():
                 self.n_r += 1
                 key = radio
                 F, C = self.posible_places[sector.id][key]
-      
                 self.model.addConstrs((var[f,c,radio] == 0 for f in range(sector.num_fil)
                                            for c in range(sector.num_col) 
                                            if (not f in F) or (not c in C)))
@@ -196,12 +200,11 @@ class SolverGurobi():
                                               #for h in range(sector.num_col)
                                               #if (l,h) in vecinos) , name = f"R{self.n_r}")
                         self.n_r += 1               
-                        self.model.addConstrs((quicksum(var[l,h,a] for a in self.R)>=  varvec[fil,col,l,h]
+                        self.model.addConstrs((quicksum(var[l,h,a] for a in self.R) >=  varvec[fil,col,l,h]
                                               for l in range(sector.num_fil)
                                               for h in range(sector.num_col)
                                               if (l,h) in vecinos) , name = f"R{self.n_r}")
         print("Termine Setting Vecinos constrais")
-
 
     def set_constrains_obj(self):
         print("Setting Pasto cubierto constrais")
@@ -281,7 +284,7 @@ class SolverGurobi():
 
     def analizar(self):
         if self.model.SolCount >= 1:
-            print(f"Valor objetivo {self.model.Obj}")
+            print(f"Valor objetivo {self.model.ObjVal}")
             with open("sector.txt", "w") as file:
                 for id_sector in self.sectores.keys():
                     print("e", self.vars[f"e{id_sector}"])
@@ -313,6 +316,30 @@ class SolverGurobi():
         else:
             print("error")
 
+    def get_reg(self, radio, x, y, a):
+        b = np.array((x, y))
+        distancia = np.linalg.norm(a-b)
+        if distancia <= radio*0.6:
+            return 1
+        else:
+            wt = -(0.4/radio)*distancia + 1
+            return wt
+
+    def get_UC(self):
+        sectores = []
+        for id, sector in self.sectores.items():
+            var = self.vars[f"x{id}"]
+            grid = np.zeros([sector.num_fil, sector.num_col])
+            for fila in range(sector.num_fil):
+                for col in range(sector.num_col):
+                    for radio in self.R:
+                        if var[fila, col, radio].x == 1:
+                            a = np.array((fila, col))
+                            for le, h in self.regados[id][(fila, col, radio)]:
+                                grid[le, h] += self.get_reg(radio, le, h, a)
+            mean = np.mean(grid)
+            sectores.append(mean)
+
     def start(self):
         self.get_data()
         self.set_vars()
@@ -323,6 +350,7 @@ class SolverGurobi():
         self.set_objetivo()
         self.optimizar()
         self.analizar()
+        self.get_UC()
 
 if __name__ == "__main__":
     gurobi = SolverGurobi()
