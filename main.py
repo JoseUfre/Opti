@@ -82,8 +82,8 @@ class SolverGurobi():
             for linea in w_list:
                 n = 0 
                 for valor in linea:
-                    self.inversion[n] =int(valor)
-                    n +=1
+                    self.inversion[n] = int(valor)
+                    n += 1
 
         with open("Costo.csv", "rt", encoding="utf-8") as archivo:
             raw_list = archivo.readlines()
@@ -318,14 +318,17 @@ class SolverGurobi():
 
     def get_reg(self, radio, x, y, a):
         b = np.array((x, y))
-        distancia = np.linalg.norm(a-b)
+        distancia = np.max(np.absolute(a-b))-1
         if distancia <= radio*0.6:
             return 1
         else:
-            wt = -(0.4/radio)*distancia + 1
+            if distancia/radio > 1.0:
+                distancia = radio
+            wt = -(1/(radio*0.4))*(distancia - 0.6*radio) + 1
             return wt
 
     def get_UC(self):
+        r = min(self.R)
         sectores = []
         for id, sector in self.sectores.items():
             var = self.vars[f"x{id}"]
@@ -337,12 +340,44 @@ class SolverGurobi():
                             a = np.array((fila, col))
                             for le, h in self.regados[id][(fila, col, radio)]:
                                 grid[le, h] += self.get_reg(radio, le, h, a)
-            size = sector.num_fil*sector.num_col
-            mean = np.mean(grid)
-            std = np.std(grid)
-            uc = 1 - (std/(mean*np.sqrt(size)))
+            mean = np.mean(grid[r:sector.num_fil-r, r:sector.num_col-r])
+            std = np.std(grid[r:sector.num_fil-r, r:sector.num_col-r])
+            uc = 1 - 0.798*(std/mean)
             sectores.append((mean, std, uc))
             print(sectores)
+
+    def complement(self):
+        with open("sector.txt","r") as file:
+            lineas = file.readlines()
+        sectores = []
+        filas = []
+        for linea in lineas:
+            linea = linea.rstrip("\n")
+            if "Mostrando" in linea:
+                sectores.append(filas)
+                filas = []
+                continue
+            linea = linea.split("|")
+            linea.pop(-1)
+            filas.append(linea)
+        sectores.append(filas)
+        for sector in sectores:
+            if len(sector) == 0:
+                continue
+            col_fl = None
+            for r in list(self.R):
+                fila = None
+
+        with open("test.txt","a") as file:
+            i = 1
+            for sector in sectores:
+                if len(sector) == 0:
+                    continue
+                file.write(f"Sector {i}\n") 
+                for fila in sector: 
+                    fila.append("\n")
+                    file.write("|".join(fila))
+                i += 1 
 
     def start(self):
         self.get_data()
@@ -359,3 +394,4 @@ class SolverGurobi():
 if __name__ == "__main__":
     gurobi = SolverGurobi()
     gurobi.start()
+    #gurobi.complement()

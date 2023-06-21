@@ -82,3 +82,11 @@ def Vhlr(radios, filas, columnas):
         for x, y in C1_hl[r]:
             V_xyr[(x, y, r)] = vecino(x, y, r, filas, columnas)
     return V_xyr
+
+
+def GSR(radios, filas, columnas):
+    SideReg = {}
+    for r in radios:
+        SideReg[(r, "l")] = (set(0, filas-1), set(range(r, columnas - r)))
+        SideReg[(r, "h")] = (set(range(r, filas - r)), set(0, columnas-1))
+    return SideReg
