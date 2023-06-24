@@ -1,5 +1,4 @@
 from gurobipy import GRB, Model, quicksum
-from random import randint, seed, uniform
 from Grilla import Chl, Whlr, Vhlr, Rhlr
 import numpy as np 
 
@@ -9,6 +8,7 @@ class Sector():
         self.num_fil = None
         self.num_col = None
         self.id = None
+
 
 class Casilla():
     def __init__(self) -> None:
@@ -24,26 +24,29 @@ class SolverGurobi():
         self.col = {}
         self.sectores = {}
         self.n_r = 0
-        self.R = set() # Evaluar la unidad de medida de las grillas, los radios estan en metros y 
-                              # Tienen que pasar a cuadrados
 
-        self.posible_places = {} # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
-                                 # tupla de valores (F,C) donde se puede colocar el regador de dicho radio
-   
-        self.not_posible_places = {} # Diccionario que de llave tiene el "fila,columna,radio" y de valor tiene una
-                                     # lista de valores donde no puede haber otro regador de la forma 
+        self.R = set()  # Conjunto con Radios Disponibles
 
-        self.vecinos_places = {} # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
-                                 # lista de valores donde si hay otro regador es vecino
+        self.posible_places = {}  # Diccionario que de llave tiene el str "radio, sector" y de valor tiene una
+                                  # tupla de valores (F,C) donde se puede colocar el regador de dicho radio
 
-        self.regados = {} # Diccionario que tiene llave fila col radio y da todos los regados
+        self.not_posible_places = {}  # Diccionario que de llave tiene el "fila,columna,radio" y de valor tiene una
+                                      # lista de valores donde no puede haber otro regador de la forma 
 
-        self.vars = {}
+        self.vecinos_places = {}  # Diccionario que de llave tiene la fila, columna y el radio y de valor tiene
+                                  # lista de valores donde si hay otro regador es vecino
 
-        self.inversion = {} # Diccionario que tiene de llave el sector y la inversion a este
-        self.min_cover = None 
-        self.costo_aspersor = None
+        self.regados = {}  # Diccionario que tiene llave fila col radio y da todos lugares que riega ese aspersor
 
+        self.vars = {}  # Diccionario que guarda las variables
+
+        self.inversion = {}  # Diccionario que tiene de llave el sector y la inversion a este
+
+        self.min_cover = None  # Parametro que indica el minimo de cobertura para cada area
+
+        self.costo_aspersor = None  # Parametro que indica el costo del aspersor 
+
+    # Funcion encargada de cargar los csv
     def get_data(self):
         print("Obteniendo sector")
         with open("Radios.csv", "rt", encoding="utf-8") as archivo:
@@ -65,13 +68,13 @@ class SolverGurobi():
             for linea in w_list:
                 n = 0 
                 for valor in linea:
-                    self.n_sectores +=1
+                    self.n_sectores += 1
                     fila, columna = valor.split("x")
                     fila = int(fila)
                     columna = int(columna)
                     self.fil[n] = fila
                     self.col[n] = columna
-                    n +=1
+                    n += 1
 
         with open("Inversiones.csv", "rt", encoding="utf-8") as archivo:
             raw_list = archivo.readlines()
@@ -107,6 +110,8 @@ class SolverGurobi():
         self.process_data()
         print("Termine Obteniendo sector")
 
+    # Funcion encargada de tomar la informacion de los csv
+    # Pasar la informacion a los parametros de la clase
     def process_data(self):
         print("Procesando data")
         for n_sector in range(self.n_sectores):
@@ -121,45 +126,46 @@ class SolverGurobi():
             self.regados[z.id] = Rhlr(self.R, z.num_fil, z.num_col)
         print("Termine Procesando data")
 
+    # Funcion encargada de definir las variables del modelo.
     def set_vars(self):
         print("Setting vars")
-        for id_sector in self.sectores.keys():
+        for id_sector in self.sectores.keys():  # Crear conjuntos de variables para cada sector
             sector: Sector = self.sectores[id_sector]
-            F = range(sector.num_fil)
-            C = range(sector.num_col)
-            nombre = f"x{sector.id}_f,c,r"
-            self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R,
-                                                 vtype=GRB.BINARY,
-                                                 name=nombre)
-            self.vars[f"r{sector.id}"] = self.model.addVars(F,C, vtype = GRB.BINARY, name = f"r{sector.id}_f,c")
-            self.vars[f"v{sector.id}"] = self.model.addVars(F,C,F,C, vtype=GRB.BINARY, name=f"v{sector.id}_f,c,l,h")
-            self.vars[f"e{sector.id}"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = f"e{sector.id}")
-            self.vars[f"aux{sector.id}"] = self.model.addVar(vtype = GRB.CONTINUOUS, name = f"aux{sector.id}")
+            F = range(sector.num_fil)  # Tomar el conjunto de filas del sector z
+            C = range(sector.num_col)  # Tomar el conjunto de columnas del sector z
+
+            # Primer conjunto de variables: Varaible "x" que indica si hay un aspersor
+            # en la fila f en la columna c de radio r
+            self.vars[f"x{sector.id}"] = self.model.addVars(F, C, self.R, vtype=GRB.BINARY, name=f"x{sector.id}_f,c,r")
+
+            # Segundo conjunto de variables: Variable "r" que indica si el bloque de la fila f y columna c es regado
+            self.vars[f"r{sector.id}"] = self.model.addVars(F, C, vtype=GRB.BINARY, name=f"r{sector.id}_f,c")
+
+            # Tercer conjunto de variables: Variable v que indica si hay una vecindad entre el regador que esta en f,c 
+            # y el que esta en l,h
+            self.vars[f"v{sector.id}"] = self.model.addVars(F, C, F, C, vtype=GRB.BINARY, name=f"v{sector.id}_f,c,l,h")
+
+            # Cuarto conjunto de variables: Variable e que indica el porcentaje de pasto no regado para el sector
+            self.vars[f"e{sector.id}"] = self.model.addVar(vtype=GRB.CONTINUOUS, name = f"e{sector.id}")
         self.model.update()
         print("Termine vars")
 
-
+    # Funcion que setea las variables relacionadas con la posicion de los aspersores
     def set_constrs_sprinklers(self):
         print("Setting sprinklers constrais")
-        for id_sector in self.sectores.keys():
+        for id_sector in self.sectores.keys():  # Crear las restricciones para cada sector
             sector: Sector = self.sectores[id_sector]
-            var = self.vars[f"x{sector.id}"]
-            # Restriccion solo haber a lo mas un regador en dicho cuadrado
-            for radio in self.R:
-                self.n_r += 1
-                key = radio
-                F, C = self.posible_places[sector.id][key]
-                self.model.addConstrs((var[f,c,radio] == 0 for f in range(sector.num_fil)
-                                           for c in range(sector.num_col) 
-                                           if (not f in F) or (not c in C)))
-            # Restriccion solo haber a lo mas un regador de cualquier tipo en la casilla
+            var = self.vars[f"x{sector.id}"]  # Rescatar el conjunto de variables para ese sector
+
+            # Restriccion 1: Puede haber a lo mas un tipo de regador en cada coordenada del sector
             self.n_r += 1
             self.model.addConstrs((quicksum(var[f, c, r] for r in self.R) <= 1
                                    for f in range(sector.num_fil) 
                                    for c in range(sector.num_col)),
                                        name=f"R{self.n_r}")
-            # Restriccion: Si hay un regador en f,c de radio r entonces no puede haber un regador en 
-            # los lugares que diga el diccionario
+
+            # Restriccion 2.1: Si hay un regador en la posicion f,c de radio r NO puede haber un regador,
+            # de cualquier tipo dentro de su radio de alcance
             for radio in self.R:
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
@@ -172,33 +178,48 @@ class SolverGurobi():
                                                for f2 in range(sector.num_fil)
                                                for c2 in range(sector.num_col)
                                                if (f2, c2) in not_places), name=f"R{self.n_r}")
+
+            # Restriccion 2.2: No puede haber un regador en una posicion si no esta permitida para su tipo
+            # Es decir, que no riegue para afuera.
+            for radio in self.R:
+                self.n_r += 1
+                key = radio
+                F, C = self.posible_places[sector.id][key]
+                self.model.addConstrs((var[f,c,radio] == 0 for f in range(sector.num_fil)
+                                           for c in range(sector.num_col) 
+                                           if (not f in F) or (not c in C)))
         print("Termine Setting sprinklers constrais")
 
+    # Funcion encargada de las restricciones de las vecindades
     def set_vecinos_cts(self):
-        # Restriccion: Saber cuantos vecinos hay
         print("Setting Vecinos constrais")
-        for z in range(self.n_sectores):
-            sector:Sector = self.sectores[z]
-            var = self.vars[f"x{sector.id}"]
-            varvec = self.vars[f"v{sector.id}"]
+        for z in range(self.n_sectores):  # Para cada sector
+            sector: Sector = self.sectores[z]
+            var = self.vars[f"x{sector.id}"]  # Rescatar el conjunto de variables asociadas a las posiciones
+            varvec = self.vars[f"v{sector.id}"]  # Rescatar el conjunto de variables asociadas a las vecindades
+
+            # Necesitamos recorrer los radios, filas y columnas.
             for radio in self.R:
                 for fil in range(sector.num_fil):
                     for col in range(sector.num_col):
-                        key = (fil,col,radio)
-                        vecinos: list = self.vecinos_places[sector.id].get(key)
+                        # Evaluar cada combinacion de fila, columna, radio.
+                        key = (fil, col, radio)
+                        vecinos: list = self.vecinos_places[sector.id].get(key)   
                         if vecinos is None:
+                            # Si la casilla no permite vecindades
+                            # no se considera
                             continue
+
+                        # Restriccion 3: Si hay un regador de radio "radio" en la fila "fil" y columna "col"
+                        # y hay un regador de cualquier tipo en la  fila "l" columna "h" y la casilla (l,h)
+                        # es un lugar que hace vecino con el aspersor (fil, col, radio) entonces, hay una vecindad
                         self.n_r += 1
                         self.model.addConstrs((var[fil,col,radio] + quicksum(var[l,h,a] for a in self.R)
                                               <= 1 + varvec[fil,col,l,h]
                                               for l in range(sector.num_fil)
                                               for h in range(sector.num_col)
                                               if (l,h) in vecinos) , name = f"R{self.n_r}")
-                        #self.n_r += 1
-                        #self.model.addConstrs((var[fil,col,radio] >=  varvec[fil,col,l,h]
-                                              #for l in range(sector.num_fil)
-                                              #for h in range(sector.num_col)
-                                              #if (l,h) in vecinos) , name = f"R{self.n_r}")
+                        # Restriccion 4: No puede haber vecindad de ("fil", "col") si no existe regador en "fil", "col"
                         self.n_r += 1               
                         self.model.addConstrs((quicksum(var[l,h,a] for a in self.R) >=  varvec[fil,col,l,h]
                                               for l in range(sector.num_fil)
@@ -206,29 +227,53 @@ class SolverGurobi():
                                               if (l,h) in vecinos) , name = f"R{self.n_r}")
         print("Termine Setting Vecinos constrais")
 
+    # Funcion encargada de las restricciones asociadas a la covertura del pasto
     def set_constrains_obj(self):
         print("Setting Pasto cubierto constrais")
-        for id_sector in self.sectores.keys():
-            self.n_r += 1
-            self.model.addConstr(self.vars[f"e{id_sector}"] <= 1-self.min_cover, name =f"R{self.n_r}")
-            self.n_r += 1
-            self.model.addConstr(self.vars[f"e{id_sector}"] >= 0.0, name =f"R{self.n_r}")
+        for id_sector in self.sectores.keys():  # Para cada sector de pasto
             sector: Sector = self.sectores[id_sector]
-            var = self.vars[f"x{sector.id}"]
-            varreg = self.vars[f"r{sector.id}"]
-            e = self.vars[f"e{id_sector}"]
-            dv = sector.num_col * sector.num_fil
+
+            var = self.vars[f"x{sector.id}"] # Rescatar el conjunto de variables asociado a la posicion de los aspersores.
+
+            varreg = self.vars[f"r{sector.id}"]  # Rescatar el conjunto de variables asociado a si una casilla es regada
+
+            e = self.vars[f"e{id_sector}"]  # Rescatar la variable asociada a lo no regado
+
+            dv = sector.num_col * sector.num_fil  # Rescatar el area del sector
+
+            # Restriccion 5: La cantidad no regada no puede superar la 1 - "El porcentaje minimo de corvertura"
+            self.n_r += 1
+            self.model.addConstr(e <= 1-self.min_cover, name=f"R{self.n_r}")
+
+            # Restriccion 6: La cantidad no regada no puede ser negativa 
+            self.n_r += 1
+            self.model.addConstr(e >= 0.0, name=f"R{self.n_r}")
+
+            # Restriccion 7: El porcentaje regado + el porcentaje no regado debe ser igual al total
+            self.n_r += 1
+            self.model.addConstr((quicksum(varreg[l,h] 
+                                  for l in range(sector.num_fil)
+                                  for h in range(sector.num_col))/dv + e == 1), name = f"R{self.n_r}")
+
+            # Buscar los lugares que pueden tener regador
             for r in self.R:
                 for c in range(sector.num_col):
                     for f in range(sector.num_fil):
                         if self.posible_places[sector.id].get((f,c,r)) is None:
+                            # Si ese lugar no puede tener regador se omite
                             continue
+
+                        # Restriccion 8 :Si el lugar f,c tiene un regador de radio r
+                        # y el bloque l,h esta a su alcance entonces,
+                        # el lugar l,h esta regado
                         self.n_r += 1
                         self.model.addConstrs((var[f, c, r] <= varreg[l,h]
                                             for h in range(sector.num_col)
                                             for l in range(sector.num_fil) 
                                             if (l,h) in self.regados[sector.id][(f, c, r)]), 
                                             name = f"R{self.n_r}")
+
+            # Restriccion 9: si el lugar (l,h) no esta alcance de ningun regador entonces no esta regado
             self.n_r += 1
             self.model.addConstrs((varreg[l,h] <= quicksum(var[f,c,r] 
                                             for r in self.R 
@@ -236,45 +281,46 @@ class SolverGurobi():
                                             for f in range(r, sector.num_fil-r)
                                             if (l,h) in self.regados[sector.id].get((f,c,r))) 
                                             for h in range(sector.num_col)
-                                            for l in range(sector.num_fil)), name = f"R{self.n_r}")
-            self.n_r += 1
-            self.model.addConstr((quicksum(varreg[l,h] 
-                                            for l in range(sector.num_fil)
-                                            for h in range(sector.num_col))/dv + e == 1), name = f"R{self.n_r}")
+                                            for l in range(sector.num_fil)), name=f"R{self.n_r}")
         print("Termine Setting Pasto cubierto constrais")
 
+    # Funcion encargada de manejar las restricciones de costo
     def set_constrains_cost(self):
         print("Setting Costo constrais")
-        for id_sector in self.sectores.keys():
-            sector: Sector = self.sectores[id_sector]
-            inversion = self.inversion[id_sector]
-            var = self.vars[f"x{sector.id}"]
-            costo = self.costo_aspersor
+        for id_sector in self.sectores.keys():  # Para cada sector 
+            sector: Sector = self.sectores[id_sector] 
+
+            inversion = self.inversion[id_sector]  # Rescatar la inversion maxima del sector
+
+            var = self.vars[f"x{sector.id}"]  # Rescatar el conjunto de variables asociado a las posiciones de los aspersores
+
+            costo = self.costo_aspersor  # Rescatar el costo de cada aspersor
+
+            # Restriccion 10: El costo de la operacion en el sector no puede superar la inversion del sector
             self.n_r += 1
             self.model.addConstr((costo * quicksum(var[f,c,r] 
                                            for r in self.R
                                            for c in range(sector.num_col)
-                                           for f in range(sector.num_fil)) <= inversion),name = f"R{self.n_r}" )
-            self.n_r += 1
-            self.model.addConstr((costo * quicksum(var[f,c,r] 
-                                           for r in self.R
-                                           for c in range(sector.num_col)
-                                           for f in range(sector.num_fil)) == self.vars[f"aux{sector.id}"]), name =f"R{self.n_r}" )    
+                                           for f in range(sector.num_fil)) <= inversion),name = f"R{self.n_r}") 
         print("Termine setting Costo constrais")
 
+    # Funcion encargada de setear la funcion objetivo
     def set_objetivo(self):
         print("Empeze a setear objetivo")
         global_function = 0.0
-        for id_sector in self.sectores.keys():
+        for id_sector in self.sectores.keys():  # Tomar en cuenta los aportes de cada sector
             sector: Sector = self.sectores[id_sector]
-            varvec = self.vars[f"v{sector.id}"]
+
+            varvec = self.vars[f"v{sector.id}"]  # Rescatar el conjunto de variables de vecindades del sector
+            # Sumar todas las vecindades 
             funcion_sector = quicksum(varvec[f,c,l,h]
                             for c in range(self.sectores[id_sector].num_col)
                             for f in range(self.sectores[id_sector].num_fil)
                             for l in range(self.sectores[id_sector].num_fil)
-                            for h in range(self.sectores[id_sector].num_col)
-                            if (c,f) != (l,h))
+                            for h in range(self.sectores[id_sector].num_col))
             global_function += funcion_sector
+
+        # Maximizar la cantidad de vecindades
         self.model.setObjective(global_function, GRB.MAXIMIZE)
         print("Termine setear objetivo")
 
@@ -282,24 +328,32 @@ class SolverGurobi():
         print("Empeze a optimizar")
         self.model.optimize()
 
+    # Funcion de analizis y encargada de generar el txt
     def analizar(self):
         if self.model.SolCount >= 1:
             print(f"Valor objetivo {self.model.ObjVal}")
             with open("sector.txt", "w") as file:
                 for id_sector in self.sectores.keys():
-                    print("e", self.vars[f"e{id_sector}"])
                     file.write(f"Mostrando sector {id_sector}\n")
                     sector = []
                     fila = []
                     var = self.vars[f"x{id_sector}"]
+                    varvec = self.vars[f"v{id_sector}"]
                     for i in range(self.sectores[id_sector].num_fil):
                         fila = []
                         for j in range(self.sectores[id_sector].num_col):
                             encontre = False
+                            for l in range(self.sectores[id_sector].num_fil):
+                                for h in range(self.sectores[id_sector].num_col):
+                                    if varvec[i, j, l, h].x == 1:
+                                        #print(f"Vecino para el aspersor ({i},{j}) en ({l},{h})")
+                                        sum = 0
+                                        for a in self.R:
+                                            sum += var[i, j, a].x
+                                        #print(f"{sum == 1}")
                             for a in self.R:
                                 radio = 0
                                 if var[i, j, a].x == 1:
-                                    print(f"fila {i} columna {j} radio {a}", var[i,j,a].x)
                                     encontre = True
                                     radio = a
                                     break
@@ -316,19 +370,20 @@ class SolverGurobi():
         else:
             print("error")
 
+    # Funciones encargada de simular cuanto riega un regador a que bloque
     def get_reg(self, radio, x, y, a):
         b = np.array((x, y))
         distancia = np.max(np.absolute(a-b))-1
-        if distancia <= radio*0.6:
+        if distancia <= radio*0.4:
             return 1
         else:
             if distancia/radio > 1.0:
                 distancia = radio
-            wt = -(1/(radio*0.4))*(distancia - 0.6*radio) + 1
+            wt = -(1/(radio*0.6))*(distancia - 0.4*radio) + 1
             return wt
 
+    # Calcular parametros estadisticos
     def get_UC(self):
-        r = min(self.R)
         sectores = []
         for id, sector in self.sectores.items():
             var = self.vars[f"x{id}"]
@@ -340,44 +395,15 @@ class SolverGurobi():
                             a = np.array((fila, col))
                             for le, h in self.regados[id][(fila, col, radio)]:
                                 grid[le, h] += self.get_reg(radio, le, h, a)
-            mean = np.mean(grid[r:sector.num_fil-r, r:sector.num_col-r])
-            std = np.std(grid[r:sector.num_fil-r, r:sector.num_col-r])
+            # Analizar la zona central
+            d2 = int(sector.num_fil/2)
+            o2 = int(sector.num_col/2)
+            mean = np.mean(grid[d2-3:d2+3, o2-3:o2+3])
+            std = np.std(grid[d2-3:d2+3, o2-3:o2+3])
+            du = 1 - 1.27*std/mean
             uc = 1 - 0.798*(std/mean)
-            sectores.append((mean, std, uc))
+            sectores.append((mean, std, uc, du))
             print(sectores)
-
-    def complement(self):
-        with open("sector.txt","r") as file:
-            lineas = file.readlines()
-        sectores = []
-        filas = []
-        for linea in lineas:
-            linea = linea.rstrip("\n")
-            if "Mostrando" in linea:
-                sectores.append(filas)
-                filas = []
-                continue
-            linea = linea.split("|")
-            linea.pop(-1)
-            filas.append(linea)
-        sectores.append(filas)
-        for sector in sectores:
-            if len(sector) == 0:
-                continue
-            col_fl = None
-            for r in list(self.R):
-                fila = None
-
-        with open("test.txt","a") as file:
-            i = 1
-            for sector in sectores:
-                if len(sector) == 0:
-                    continue
-                file.write(f"Sector {i}\n") 
-                for fila in sector: 
-                    fila.append("\n")
-                    file.write("|".join(fila))
-                i += 1 
 
     def start(self):
         self.get_data()
@@ -394,4 +420,3 @@ class SolverGurobi():
 if __name__ == "__main__":
     gurobi = SolverGurobi()
     gurobi.start()
-    #gurobi.complement()
